@@ -34,12 +34,16 @@ curr_subdir = ""
 curr_subsubdir = ""
 proj_list = []
 
+all_entered = False
 error_flag = False
 
 def ListInfo():
     print("\n\n|-----------------------------------------------------------------------------------|")
     print("                                 information                                       ")
     print("|-----------------------------------------------------------------------------------|")
+    print"\nHost and User info:"
+    print"hostname: ", _hn
+    print"username: ", _un, "\n\n"     
     if not curr_dir:
         print(" current directory (full path): none selected")
     elif not curr_subdir:
@@ -69,28 +73,96 @@ def print_menu():
     print"  - remproj (number)*: removes the list of project numbers from the running list         "
     print"  - addfile (proj number) (files)*: adds the files listed to the project number given    "
     print"  - remfile (proj number) (files)*: removes the files listed from the projects given     "
-    print"  - apply: completes the transactions                                                    "
-    print"  - reset: clears all current information                                                "
-    print"  - q: Exits the program\n"
+    print"  - apply: completes the transactions"
+    print"  - reset: clears all current information"
+    print"  - saveenv (file name): saves current enviroment to a .env file, default file name is Lab_name.env"
+    print"  - loadenv (file name): loads an existing environment file "                                
+    print"  - chhost (host name): change the hostname"
+    print"  - chuname (text username): change the username"
+    print"  - chpass: change the password"
+    print"  - q: Exits the program"
+    print"  - h: reprint this menu"
+
     print"  (item)* indicates that multiple may be specified"
     print"----------------------------------------------------------------------------------------\n\n "
 
-# wait to run program until user has entered all necessary connection info
-while True:
-    _hn = ""
-    _un = ""
-    _pw = ""
-    
-    _hn = raw_input("Host name: ")
-    _un = raw_input("Username: ")
-    _pw = getpass.getpass(prompt="Password: ")
-    
-    if not(_hn and _un and _pw):
-        print("Please reenter all necessary information.\n")
-        continue
+def chhost(hostname):
+    global _hn
+    _hn = hostname
+
+def chuname(uname):
+    global _un
+    _un = uname
+
+def chpass():
+    global _pw
+    _pw = getpass.getpass(prompt="Enter New Password: ")
+
+def saveenv(filename):
+	global proj_list
+	dest = None
+	if os.path.isfile(filename):
+		print "Updating ", filename
+		dest = open(filename, 'w')
+	else:
+	    print "Creating new environment file: ", filename
+	    dest = open(filename, 'w')
+
+	dest.write(str(len(proj_list)))
+	dest.write("\n")
+	for proj in proj_list:
+	    dest.write(proj.pp)
+	    dest.write("\n")
+	    for file in proj.files:
+	        dest.write(str(file)+" ")
+	    dest.write("\n") 
+	dest.close()
+	
+def loadenv(filename):
+    global proj_list
+    dest = None
+    if not(os.path.isfile(filename)):
+       print "ERROR: Invalid environment file specified!"
     else:
-        print("Starting program...\n\n")
-        break
+        dest = open(filename, 'r')
+        file = dest.read()
+        file_list = file.split('\n')
+        print "Number of projects: ", file_list[0]
+        print file_list
+        i = 0
+        while i < int(file_list[0]):
+            print "Adding project: ", file_list[1+(3*i)]
+            if os.path.isdir(file_list[1+(2*i)]):
+               proj_list.append(Project(file_list[1+(2*i)]))
+               print("Successfully added project " + str(len(proj_list)))
+               temp = file_list[2+(2*i)]
+               temp_list = temp.split(' ')
+               for thing in temp_list:
+                   if not(len(thing) == 0):
+                       proj_list[i].addFile(thing)
+               
+                   
+            else:
+               print "ERROR: Project path does not exist for: ", file_list[1+(3*i)]
+            i+=1
+        dest.close
+
+# wait to run program until user has entered all necessary connection info
+while not(all_entered):
+    
+    if not(_hn):
+        _hn = raw_input("Host name: ")
+	if not(_un):
+	    _un = raw_input("Username: ")
+    if not(_pw):
+       _pw = getpass.getpass(prompt="Password: ")
+    
+    if _hn and _un and _pw:
+       print("Starting program...\n\n")
+       all_entered = True
+    else:
+       print("Please re-enter the following information:\n")
+    	
 
 print_menu()
 while True:
@@ -286,10 +358,56 @@ while True:
             
             rmtree(temp_path)
             print("All transactions finished")
-    
+    elif input_list[0] == "chhost":
+        if not ArgMin(2, input_list):
+          print"ERROR: Please enter a new host name"
+        else:
+          chhost(input_list[1])
+          print"Updated host name to: ", input_list[1]
+    elif input_list[0] == "chhost":
+        if not ArgMin(2, input_list):
+          print"ERROR: Please enter a new host name"
+        else:
+          chhost(input_list[1])
+          print"Updated host name to: ", input_list[1]
+    elif input_list[0] == "chuname":
+        if not ArgMin(2, input_list):
+          print"ERROR: Please enter a new user name"
+        else:
+          chuname(input_list[1])
+          print"Updated user name to: ", input_list[1]
+    elif input_list[0] == "chpass":
+        chpass()
+        print "Updated password"
+    elif input_list[0] == "saveenv":
+	    global curr_subdir
+	    if len(curr_subdir) != 0:
+	        if not ArgMin(2, input_list):
+	            filename = curr_subdir + ".env"
+	        else:
+	            filename = input_list[1]
+	            if not(filename.endswith(".env")):
+	                filename+=".env"
+	        saveenv(filename)
+	    else:
+	        print "ERROR: Must choose a laboratory before you can save thhe environment"
+    elif input_list[0] == "loadenv":
+	    global curr_subdir
+	    if len(curr_subdir) != 0:
+	        if not(ArgMin(2, input_list)):
+	            print "Error must specicify '.env' file to load from"
+	        else:
+	            filename = input_list[1]
+	            if not(filename.endswith(".env")):
+	                filename+=".env"
+	            loadenv(filename)
+	    else:
+	        print "ERROR: Must choose a laboratory before you can load this environment"
     # quits the program
-    elif input_list[0] == "q":
+    elif input_list[0] == "q" or input_list[0] == "quit":
         break
+    elif input_list[0] == "h" or input_list[0] == "help":
+    	print_menu();
     else:
         print "ERROR: Command not recognized."
         continue
